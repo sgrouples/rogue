@@ -53,13 +53,14 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       cmd.put("count", query.collectionName)
       cmd.put("query", condition)
 
-      queryClause.lim.filter(_ > 0).foreach( cmd.put("limit", _) )
-      queryClause.sk.filter(_ > 0).foreach( cmd.put("skip", _) )
+      queryClause.lim.filter(_ > 0).foreach( x => cmd.put("limit", x.asInstanceOf[AnyRef]) )
+      queryClause.sk.filter(_ > 0).foreach( x=> cmd.put("skip",  x.asInstanceOf[AnyRef]) )
 
       // 4sq dynamically throttles ReadPreference via an override of
       // DBCursor creation.  We don't want to override for the whole
       // DBCollection because those are cached for the life of the DB
-      val result: CommandResult = db.command(cmd, coll.getOptions, readPreference.getOrElse(coll.find().getReadPreference))
+      //coll.getOptions  - not  necessary
+      val result: CommandResult = db.command(cmd, readPreference.getOrElse(coll.find().getReadPreference))
       if (!result.ok) {
         result.getErrorMessage match {
           // pretend count is zero craziness from the mongo-java-driver

@@ -21,8 +21,8 @@ class QueryTest extends JUnitMustMatchers {
   def testProduceACorrectJSONQueryString {
     val d1 = new DateTime(2010, 5, 1, 0, 0, 0, 0, DateTimeZone.UTC)
     val d2 = new DateTime(2010, 5, 2, 0, 0, 0, 0, DateTimeZone.UTC)
-    val oid1 = new ObjectId(d1.toDate, 0, 0)
-    val oid2 = new ObjectId(d2.toDate, 0, 0)
+    val oid1 = new ObjectId(d1.toDate, 0, 0:Short, 0)
+    val oid2 = new ObjectId(d2.toDate, 0, 0:Short, 0)
     val oid = new ObjectId
     val ven1 = Venue.createRecord._id(oid1)
 
