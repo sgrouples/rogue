@@ -15,19 +15,20 @@ object RogueBuild extends Build {
   lazy val IvyDefaultConfiguration = config("default") extend(Compile)
 
   lazy val defaultSettings: Seq[Setting[_]] = Seq(
-    version := "3.0.0-SNAPSHOT",
+    version := "2.5.1-Mongo",
     organization := "com.foursquare",
     scalaVersion := "2.11.7",
     publishMavenStyle := true,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
-    publishTo <<= (version) { v =>
+    /*publishTo <<= (version) { v =>
       val nexus = "https://oss.sonatype.org/"
       if (v.endsWith("-SNAPSHOT"))
         Some("snapshots" at nexus+"content/repositories/snapshots")
       else
         Some("releases" at nexus+"service/local/staging/deploy/maven2")
-    },
+    },*/
+    publishTo := Some(Resolver.file("mvn-repo", new File(Path.userHome + "/git/mvn-repo/"))),
     pomExtra := (
       <url>http://github.com/foursquare/rogue</url>
       <licenses>
