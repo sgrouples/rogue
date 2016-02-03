@@ -8,6 +8,7 @@ import com.foursquare.rogue.Iter._
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder, CommandResult, DBCollection,
   DBCursor, DBObject, ReadPreference, WriteConcern}
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.blocking
 
 trait DBCollectionFactory[MB] {
   def getDBCollection[M <: MB](query: Query[M, _, _]): DBCollection
@@ -29,7 +30,9 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
     val start = System.nanoTime
     val instanceName: String = dbCollectionFactory.getInstanceName(query)
     try {
-      logger.onExecuteQuery(query, instanceName, description, f)
+      blocking {
+        logger.onExecuteQuery(query, instanceName, description, f)
+      }
     } catch {
       case e: Exception =>
         throw new RogueException("Mongo query on %s [%s] failed after %d ms".
