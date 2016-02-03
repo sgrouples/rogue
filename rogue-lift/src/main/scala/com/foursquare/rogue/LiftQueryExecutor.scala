@@ -4,26 +4,36 @@ package com.foursquare.rogue
 
 import com.foursquare.index.{IndexedRecord, UntypedMongoIndex}
 import com.foursquare.rogue.MongoHelpers.MongoSelect
+import com.mongodb.async.client.{MongoDatabase, MongoCollection}
 import com.mongodb.{DBCollection, DBObject}
 import net.liftweb.common.{Box, Full}
 import net.liftweb.mongodb.record.{BsonRecord, BsonMetaRecord, MongoRecord, MongoMetaRecord}
 import net.liftweb.mongodb.MongoDB
 import net.liftweb.mongodb.record.field.BsonRecordField
 import net.liftweb.record.Record
+import org.bson.Document
 import org.bson.types.BasicBSONList
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 object LiftDBCollectionFactory extends DBCollectionFactory[MongoRecord[_] with MongoMetaRecord[_]] {
-  override def getDBCollection[M <: MongoRecord[_] with MongoMetaRecord[_]](query: Query[M, _, _]): DBCollection = {
-    MongoDB.useSession(query.meta.connectionIdentifier){ db =>
-      db.getCollection(query.collectionName)
-    }
+  override def getDBCollection[M <: MongoRecord[_] with MongoMetaRecord[_]](query: Query[M, _, _]): MongoCollection[Document] = ???
+
+  override def getDB[M <: MongoRecord[_] with MongoMetaRecord[_]](query: Query[M, _, _]): MongoDatabase = {
+    query.meta.connectionIdentifier.jndiName
+    MongoDB.useSession(query.meta.connectionIdentifier)
+    ???
   }
-  override def getPrimaryDBCollection[M <: MongoRecord[_] with MongoMetaRecord[_]](query: Query[M, _, _]): DBCollection = {
+
+  /* {
+
+      MongoDB.useSession(query.meta.connectionIdentifier){ db =>
+        db.getCollection(query.collectionName)
+      }
+    }*/
+  override def getPrimaryDBCollection[M <: MongoRecord[_] with MongoMetaRecord[_]](query: Query[M, _, _]): MongoCollection[Document] = ??? /* {
     MongoDB.useSession(query.meta/* TODO: .master*/.connectionIdentifier){ db =>
       db.getCollection(query.collectionName)
     }
-  }
+  }*/
   override def getInstanceName[M <: MongoRecord[_] with MongoMetaRecord[_]](query: Query[M, _, _]): String = {
     query.meta.connectionIdentifier.toString
   }

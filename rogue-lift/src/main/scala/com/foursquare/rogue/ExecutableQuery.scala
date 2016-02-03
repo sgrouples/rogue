@@ -7,6 +7,9 @@ import com.foursquare.rogue.MongoHelpers.MongoSelect
 import com.foursquare.rogue.Rogue._
 import com.mongodb.WriteConcern
 
+import scala.concurrent.{Future, Await}
+import scala.concurrent.duration._
+
 case class ExecutableQuery[MB, M <: MB, R, State](
     query: Query[M, R, State],
     db: QueryExecutor[MB]
@@ -17,21 +20,21 @@ case class ExecutableQuery[MB, M <: MB, R, State](
    * have limits or skips.
    */
   def count(): Long =
-    db.count(query)
+    w(db.count(query))
 
   /**
    * Returns the number of distinct values returned by a query. The query must not have
    * limit or skip clauses.
    */
   def countDistinct[V](field: M => Field[V, _]): Long =
-    db.countDistinct(query)(field.asInstanceOf[M => Field[V, M]])
+    w(db.countDistinct(query)(field.asInstanceOf[M => Field[V, M]]))
 
   /**
    * Returns a list of distinct values returned by a query. The query must not have
    * limit or skip clauses.
    */
   def distinct[V](field: M => Field[V, _]): List[V] =
-    db.distinct(query)(field.asInstanceOf[M => Field[V, M]])
+    w(db.distinct(query)(field.asInstanceOf[M => Field[V, M]]))
 
   /**
    * Checks if there are any records that match this query.
@@ -115,20 +118,20 @@ case class ExecutableQuery[MB, M <: MB, R, State](
    * A copy of the deleted record is returned to the caller.
    */
   def findAndDeleteOne()(implicit ev: RequireShardKey[M, State]): Option[R] =
-    db.findAndDeleteOne(query)
+    w(db.findAndDeleteOne(query))
 
   /**
    * Return a string containing details about how the query would be executed in mongo.
    * In particular, this is useful for finding out what indexes will be used by the query.
    */
   def explain(): String =
-    db.explain(query)
+    w(db.explain(query))
 
   def iterate[S](state: S)(handler: (S, Iter.Event[R]) => Iter.Command[S]): S =
-    db.iterate(query, state)(handler)
+    w(db.iterate(query, state)(handler))
 
   def iterateBatch[S](batchSize: Int, state: S)(handler: (S, Iter.Event[List[R]]) => Iter.Command[S]): S =
-    db.iterateBatch(query, batchSize, state)(handler)
+    w(db.iterateBatch(query, batchSize, state)(handler))
 }
 
 case class ExecutableModifyQuery[MB, M <: MB, State](query: ModifyQuery[M, State],
@@ -157,10 +160,10 @@ case class ExecutableFindAndModifyQuery[MB, M <: MB, R](
     db: QueryExecutor[MB]
 ) {
   def updateOne(returnNew: Boolean = false): Option[R] =
-    db.findAndUpdateOne(query, returnNew)
+    w(db.findAndUpdateOne(query, returnNew))
 
   def upsertOne(returnNew: Boolean = false): Option[R] =
-    db.findAndUpsertOne(query, returnNew)
+    w(db.findAndUpsertOne(query, returnNew))
 }
 
 class PaginatedQuery[MB, M <: MB, R, +State <: Unlimited with Unskipped](
@@ -175,7 +178,7 @@ class PaginatedQuery[MB, M <: MB, R, +State <: Unlimited with Unskipped](
 
   def setCountPerPage(c: Int) = if (c == countPerPage) this else new PaginatedQuery(q, db, c, pageNum)
 
-  lazy val countAll: Long = db.count(q)
+  lazy val countAll: Long = w(db.count(q))
 
   def fetch(): List[R] = {
     db.fetch(q.skip(countPerPage * (pageNum - 1)).limit(countPerPage))

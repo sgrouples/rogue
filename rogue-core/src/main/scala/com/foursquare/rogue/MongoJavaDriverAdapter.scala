@@ -5,14 +5,18 @@ package com.foursquare.rogue
 import com.foursquare.index.UntypedMongoIndex
 import com.foursquare.rogue.Rogue._
 import com.foursquare.rogue.Iter._
+import com.mongodb.async.SingleResultCallback
+import com.mongodb.async.client.{MongoCollection, MongoDatabase}
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder, CommandResult, DBCollection,
   DBCursor, DBObject, ReadPreference, WriteConcern}
+import org.bson.Document
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.blocking
+import scala.concurrent.{Future, blocking}
 
 trait DBCollectionFactory[MB] {
-  def getDBCollection[M <: MB](query: Query[M, _, _]): DBCollection
-  def getPrimaryDBCollection[M <: MB](query: Query[M, _, _]): DBCollection
+  def getDB[M](query: Query[M, _, _]): MongoDatabase
+  def getDBCollection[M <: MB](query: Query[M, _, _]): MongoCollection[Document]
+  def getPrimaryDBCollection[M <: MB](query: Query[M, _, _]): MongoCollection[Document]
   def getInstanceName[M <: MB](query: Query[M, _, _]): String
   // A set of of indexes, which are ordered lists of field names
   def getIndexes[M <: MB](query: Query[M, _, _]): Option[List[UntypedMongoIndex]]
@@ -43,7 +47,7 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
     }
   }
 
-  def count[M <: MB](query: Query[M, _, _], readPreference: Option[ReadPreference]): Long = {
+  def count[M <: MB](query: Query[M, _, _], readPreference: Option[ReadPreference]): Future[Long] = ??? /* {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val condition: DBObject = buildCondition(queryClause.condition)
@@ -51,7 +55,7 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
 
     runCommand(description, queryClause) {
       val coll = dbCollectionFactory.getDBCollection(query)
-      val db = coll.getDB
+      val db = dbCollectionFactory.db
       val cmd = new BasicDBObject()
       cmd.put("count", query.collectionName)
       cmd.put("query", condition)
@@ -63,6 +67,9 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       // DBCursor creation.  We don't want to override for the whole
       // DBCollection because those are cached for the life of the DB
       //coll.getOptions  - not  necessary
+      db.runCommand(cmd, readPreference.get, new SingleResultCallback[Document] {
+        override def onResult(t: Document, throwable: Throwable): Unit = ???
+      })
       val result: CommandResult = db.command(cmd, readPreference.getOrElse(coll.find().getReadPreference))
       if (!result.ok) {
         result.getErrorMessage match {
@@ -76,11 +83,11 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
         result.getLong("n")
       }
     }
-  }
+  } */
 
   def countDistinct[M <: MB](query: Query[M, _, _],
                              key: String,
-                             readPreference: Option[ReadPreference]): Long = {
+                             readPreference: Option[ReadPreference]): Future[Long] = ??? /* {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
@@ -92,11 +99,11 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       val coll = dbCollectionFactory.getDBCollection(query)
       coll.distinct(key, cnd, readPreference.getOrElse(coll.find().getReadPreference)).size()
     }
-  }
+  } */
 
   def distinct[M <: MB, R](query: Query[M, _, _],
                            key: String,
-                           readPreference: Option[ReadPreference]): List[R] = {
+                           readPreference: Option[ReadPreference]): Future[List[R]] = ??? /* {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
@@ -111,10 +118,10 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       for (i <- 0 until rj.size) rv += rj.get(i).asInstanceOf[R]
       rv.toList
     }
-  }
+  } */
 
   def delete[M <: MB](query: Query[M, _, _],
-                      writeConcern: WriteConcern): Unit = {
+                      writeConcern: WriteConcern): Future[Unit] = ??? /* {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
@@ -122,14 +129,15 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
 
     runCommand(description, queryClause) {
       val coll = dbCollectionFactory.getPrimaryDBCollection(query)
+      dbCollectionFactory.db.withWriteConcern(writeConcern).
       coll.remove(cnd, writeConcern)
     }
-  }
+  } */
 
   def modify[M <: MB](mod: ModifyQuery[M, _],
                       upsert: Boolean,
                       multi: Boolean,
-                      writeConcern: WriteConcern): Unit = {
+                      writeConcern: WriteConcern): Future[Unit] = ??? /* {
     val modClause = transformer.transformModify(mod)
     validator.validateModify(modClause, dbCollectionFactory.getIndexes(modClause.query))
     if (!modClause.mod.clauses.isEmpty) {
@@ -142,13 +150,13 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
         coll.update(q, m, upsert, multi, writeConcern)
       }
     }
-  }
+  } */
 
   def findAndModify[M <: MB, R](mod: FindAndModifyQuery[M, R],
                                 returnNew: Boolean,
                                 upsert: Boolean,
                                 remove: Boolean)
-                               (f: DBObject => R): Option[R] = {
+                               (f: DBObject => R): Future[Option[R]] = ??? /* {
     val modClause = transformer.transformFindAndModify(mod)
     validator.validateFindAndModify(modClause, dbCollectionFactory.getIndexes(modClause.query))
     if (!modClause.mod.clauses.isEmpty || remove) {
@@ -167,23 +175,23 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       }
     }
     else None
-  }
+  } */
 
   def query[M <: MB](query: Query[M, _, _],
                      batchSize: Option[Int],
                      readPreference: Option[ReadPreference])
-                    (f: DBObject => Unit): Unit = {
+                    (f: DBObject => Unit): Future[Unit] = ??? /* {
     doQuery("find", query, batchSize, readPreference){cursor =>
       while (cursor.hasNext)
         f(cursor.next)
     }
-  }
+  } */
 
   def iterate[M <: MB, R, S](query: Query[M, R, _],
                              initialState: S,
                              f: DBObject => R,
                              readPreference: Option[ReadPreference] = None)
-                            (handler: (S, Event[R]) => Command[S]): S = {
+                            (handler: (S, Event[R]) => Command[S]): Future[S] = ??? /*{
     def getObject(cursor: DBCursor): Either[Exception, R] = {
       try {
         Right(f(cursor.next))
@@ -210,14 +218,14 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
     doQuery("find", query, None, readPreference)(cursor =>
       iter(cursor, initialState)
     )
-  }
+  }*/
 
   def iterateBatch[M <: MB, R, S](query: Query[M, R, _],
                                   batchSize: Int,
                                   initialState: S,
                                   f: DBObject => R,
                                   readPreference: Option[ReadPreference] = None)
-                                 (handler: (S, Event[List[R]]) => Command[S]): S = {
+                                 (handler: (S, Event[List[R]]) => Command[S]): Future[S] = ??? /* {
     val buf = new ListBuffer[R]
 
     def getBatch(cursor: DBCursor): Either[Exception, List[R]] = {
@@ -252,14 +260,14 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
     doQuery("find", query, Some(batchSize), readPreference)(cursor => {
       iter(cursor, initialState)
     })
-  }
+  } */
 
 
-  def explain[M <: MB](query: Query[M, _, _]): String = {
+  def explain[M <: MB](query: Query[M, _, _]): Future[String] = ??? /* {
     doQuery("find", query, None, None){cursor =>
       cursor.explain.toString
     }
-  }
+  }*/
 
   private def doQuery[M <: MB, T](
       operation: String,
@@ -268,7 +276,7 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       readPreference: Option[ReadPreference]
   )(
       f: DBCursor => T
-  ): T = {
+  ): Future[T] = ??? /* {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
@@ -301,8 +309,8 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
       } catch {
         case e: Exception =>
           throw new RogueException("Mongo query on %s [%s] failed".format(
-            coll.getDB().getMongo().toString(), description), e)
+            dbCollectionFactory.db.getName, description), e)
       }
     }
-  }
+  }*/
 }

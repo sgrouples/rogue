@@ -2,7 +2,12 @@
 
 package com.foursquare
 
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+
 package object rogue {
+
+  private[rogue] def w[T](f: Future[T]): T = Await.result(f, 1.second)
 
   type InitialState = Unordered with Unselected with Unlimited with Unskipped with HasNoOrClause with ShardKeyNotSpecified
   type OrderedState = Ordered with Unselected with Unlimited with Unskipped with HasNoOrClause with ShardKeyNotSpecified
@@ -20,7 +25,6 @@ package object rogue {
 
   /**
    * Iteratee helper classes
-   * @tparam S state type
    */
   object Iter {
     sealed trait Command[S] {

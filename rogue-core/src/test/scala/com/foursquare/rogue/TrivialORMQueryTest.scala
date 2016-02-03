@@ -2,8 +2,10 @@ package com.foursquare.rogue
 
 import com.foursquare.index.UntypedMongoIndex
 import com.foursquare.field.{Field, OptionalField}
-import com.mongodb.{DB, DBCollection, DBObject, Mongo, ServerAddress, WriteConcern}
+import com.mongodb.async.client.{MongoClients, MongoCollection, MongoDatabase}
+import com.mongodb._
 import com.foursquare.rogue.MongoHelpers.{AndCondition, MongoModify, MongoSelect}
+import org.bson.Document
 import org.junit.{Before, Test}
 import org.specs2.matcher.JUnitMustMatchers
 
@@ -19,7 +21,7 @@ object TrivialORM {
 
   val mongo = {
     val MongoPort = Option(System.getenv("MONGO_PORT")).map(_.toInt).getOrElse(37648)
-    new Mongo(new ServerAddress("localhost", MongoPort))
+    MongoClients.create(s"mongodb://localhost:$MongoPort")
   }
 
   def disconnectFromMongo = {
@@ -27,11 +29,14 @@ object TrivialORM {
   }
 
   type MB = Meta[_]
-  class MyDBCollectionFactory(db: DB) extends DBCollectionFactory[MB] {
-    override def getDBCollection[M <: MB](query: Query[M, _, _]): DBCollection = {
+  class MyDBCollectionFactory(db: MongoDatabase) extends DBCollectionFactory[MB] {
+    override def getDB[M](query: Query[M, _, _]): MongoDatabase = {
+      db
+    }
+    override def getDBCollection[M <: MB](query: Query[M, _, _]): MongoCollection[Document] = {
       db.getCollection(query.meta.collectionName)
     }
-    override def getPrimaryDBCollection[M <: MB](query: Query[M, _, _]): DBCollection = {
+    override def getPrimaryDBCollection[M <: MB](query: Query[M, _, _]): MongoCollection[Document] = {
       db.getCollection(query.meta.collectionName)
     }
     override def getInstanceName[M <: MB](query: Query[M, _, _]): String = {
@@ -43,7 +48,7 @@ object TrivialORM {
   }
 
   class MyQueryExecutor extends QueryExecutor[Meta[_]] {
-    override val adapter = new MongoJavaDriverAdapter[Meta[_]](new MyDBCollectionFactory(mongo.getDB("test")))
+    override val adapter = new MongoJavaDriverAdapter[Meta[_]](new MyDBCollectionFactory(mongo.getDatabase("test")))
     override val optimizer = new QueryOptimizer
     override val defaultWriteConcern: WriteConcern = WriteConcern.SAFE
 

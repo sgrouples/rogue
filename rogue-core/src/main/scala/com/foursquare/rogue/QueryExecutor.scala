@@ -6,6 +6,7 @@ import com.foursquare.field.Field
 import com.foursquare.rogue.MongoHelpers.{MongoModify, MongoSelect}
 import com.mongodb.{DBObject, ReadPreference, WriteConcern}
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Future
 
 trait RogueSerializer[R] {
   def fromDBObject(dbo: DBObject): R
@@ -24,9 +25,9 @@ trait QueryExecutor[MB] extends Rogue {
 
   def count[M <: MB, State](query: Query[M, _, State],
                             readPreference: Option[ReadPreference] = None)
-                           (implicit ev: ShardingOk[M, State]): Long = {
+                           (implicit ev: ShardingOk[M, State]): Future[Long] = {
     if (optimizer.isEmptyQuery(query)) {
-      0L
+      Future.successful(0L)
     } else {
       adapter.count(query, readPreference)
     }
@@ -35,9 +36,9 @@ trait QueryExecutor[MB] extends Rogue {
   def countDistinct[M <: MB, V, State](query: Query[M, _, State],
                                        readPreference: Option[ReadPreference] = None)
                                       (field: M => Field[V, M])
-                                      (implicit ev: ShardingOk[M, State]): Long = {
+                                      (implicit ev: ShardingOk[M, State]): Future[Long] = {
     if (optimizer.isEmptyQuery(query)) {
-      0L
+      Future.successful(0L)
     } else {
       adapter.countDistinct(query, field(query.meta).name, readPreference)
     }
@@ -46,9 +47,9 @@ trait QueryExecutor[MB] extends Rogue {
   def distinct[M <: MB, V, State](query: Query[M, _, State],
                                   readPreference: Option[ReadPreference] = None)
                                  (field: M => Field[V, M])
-                                 (implicit ev: ShardingOk[M, State]): List[V] = {
+                                 (implicit ev: ShardingOk[M, State]): Future[List[V]] = {
     if (optimizer.isEmptyQuery(query)) {
-      Nil
+      Future.successful(Nil)
     } else {
       adapter.distinct(query, field(query.meta).name, readPreference)
     }
@@ -168,9 +169,9 @@ trait QueryExecutor[MB] extends Rogue {
     query: FindAndModifyQuery[M, R],
     returnNew: Boolean = false,
     writeConcern: WriteConcern = defaultWriteConcern
-  ): Option[R] = {
+  ): Future[Option[R]] = {
     if (optimizer.isEmptyQuery(query)) {
-      None
+      Future.successful(None)
     } else {
       val s = serializer[M, R](query.query.meta, query.query.select)
       adapter.findAndModify(query, returnNew, upsert=false, remove=false)(s.fromDBObject _)
@@ -181,9 +182,9 @@ trait QueryExecutor[MB] extends Rogue {
     query: FindAndModifyQuery[M, R],
     returnNew: Boolean = false,
     writeConcern: WriteConcern = defaultWriteConcern
-  ): Option[R] = {
+  ): Future[Option[R]] = {
     if (optimizer.isEmptyQuery(query)) {
-      None
+      Future.successful(None)
     } else {
       val s = serializer[M, R](query.query.meta, query.query.select)
       adapter.findAndModify(query, returnNew, upsert=true, remove=false)(s.fromDBObject _)
@@ -193,9 +194,9 @@ trait QueryExecutor[MB] extends Rogue {
   def findAndDeleteOne[M <: MB, R, State](
     query: Query[M, R, State],
     writeConcern: WriteConcern = defaultWriteConcern
-  )(implicit ev: RequireShardKey[M, State]): Option[R] = {
+  )(implicit ev: RequireShardKey[M, State]): Future[Option[R]] = {
     if (optimizer.isEmptyQuery(query)) {
-      None
+      Future.successful(None)
     } else {
       val s = serializer[M, R](query.meta, query.select)
       val mod = FindAndModifyQuery(query, MongoModify(Nil))
@@ -203,7 +204,7 @@ trait QueryExecutor[MB] extends Rogue {
     }
   }
 
-  def explain[M <: MB](query: Query[M, _, _]): String = {
+  def explain[M <: MB](query: Query[M, _, _]): Future[String] = {
     adapter.explain(query)
   }
 
@@ -211,9 +212,9 @@ trait QueryExecutor[MB] extends Rogue {
                                     state: S,
                                     readPreference: Option[ReadPreference] = None)
                                    (handler: (S, Iter.Event[R]) => Iter.Command[S])
-                                   (implicit ev: ShardingOk[M, State]): S = {
+                                   (implicit ev: ShardingOk[M, State]): Future[S] = {
     if (optimizer.isEmptyQuery(query)) {
-      handler(state, Iter.EOF).state
+      Future.successful(handler(state, Iter.EOF).state)
     } else {
       val s = serializer[M, R](query.meta, query.select)
       adapter.iterate(query, state, s.fromDBObject _, readPreference)(handler)
@@ -225,9 +226,9 @@ trait QueryExecutor[MB] extends Rogue {
                                          state: S,
                                          readPreference: Option[ReadPreference] = None)
                                         (handler: (S, Iter.Event[List[R]]) => Iter.Command[S])
-                                        (implicit ev: ShardingOk[M, State]): S = {
+                                        (implicit ev: ShardingOk[M, State]): Future[S] = {
     if (optimizer.isEmptyQuery(query)) {
-      handler(state, Iter.EOF).state
+      Future.successful(handler(state, Iter.EOF).state)
     } else {
       val s = serializer[M, R](query.meta, query.select)
       adapter.iterateBatch(query, batchSize, state, s.fromDBObject _, readPreference)(handler)
