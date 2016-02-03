@@ -10,6 +10,7 @@ libraryDependencies <++= (scalaVersion) { scalaVersion =>
     "joda-time"                % "joda-time"           % "2.9.1"        % "provided",
     "org.joda"                 % "joda-convert"        % "1.8.1"        % "provided",
     "org.mongodb"              % "mongo-java-driver"   % "3.2.1"     % "compile",
+    "org.mongodb"              % "mongodb-driver-async"% "3.2.1"     % "compile",
     "junit"                    % "junit"               % "4.5"        % "test",
     "com.novocode"             % "junit-interface"     % "0.6"        % "test",
     "ch.qos.logback"           % "logback-classic"     % "0.9.26"     % "provided",
