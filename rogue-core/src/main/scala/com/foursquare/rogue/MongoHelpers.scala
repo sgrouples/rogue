@@ -2,7 +2,7 @@
 
 package com.foursquare.rogue
 
-import com.mongodb.{BasicDBObjectBuilder, DBObject}
+import com.mongodb.{BasicDBObject, BasicDBObjectBuilder, DBObject}
 import scala.collection.immutable.ListMap
 
 object MongoHelpers extends Rogue {
@@ -19,13 +19,13 @@ object MongoHelpers extends Rogue {
   sealed case class MongoSelect[M, R](fields: List[SelectField[_, M]], transformer: List[Any] => R)
 
   object MongoBuilder {
-    def buildCondition(cond: AndCondition, signature: Boolean = false): DBObject = {
+    def buildCondition(cond: AndCondition, signature: Boolean = false): BasicDBObject = {
       buildCondition(cond, BasicDBObjectBuilder.start, signature)
     }
 
     def buildCondition(cond: AndCondition,
                        builder: BasicDBObjectBuilder,
-                       signature: Boolean): DBObject = {
+                       signature: Boolean): BasicDBObject = {
       val (rawClauses, safeClauses) = cond.clauses.partition(_.isInstanceOf[RawQueryClause])
 
       // Normal clauses
@@ -63,7 +63,7 @@ object MongoHelpers extends Rogue {
             .filterNot(_.keySet.isEmpty)
         builder.add("$or", QueryHelpers.list(subclauses))
       })
-      builder.get
+      builder.get.asInstanceOf[BasicDBObject]
     }
 
     def buildOrder(o: MongoOrder): DBObject = {

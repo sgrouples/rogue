@@ -7,6 +7,7 @@ import com.foursquare.rogue.MongoHelpers.MongoSelect
 import com.foursquare.rogue.Rogue._
 import com.mongodb.WriteConcern
 
+
 case class ExecutableQuery[MB, M <: MB, R, State](
     query: Query[M, R, State],
     db: QueryExecutor[MB]
@@ -43,6 +44,7 @@ case class ExecutableQuery[MB, M <: MB, R, State](
 
   /**
    * Executes a function on each record value returned by a query.
+ *
    * @param f a function to be invoked on each fetched record.
    * @return nothing.
    */
@@ -51,6 +53,7 @@ case class ExecutableQuery[MB, M <: MB, R, State](
 
   /**
    * Execute the query, returning all of the records that match the query.
+ *
    * @return a list containing the records that match the query
    */
   def fetch(): List[R] =
@@ -59,6 +62,7 @@ case class ExecutableQuery[MB, M <: MB, R, State](
   /**
    * Execute a query, returning no more than a specified number of result records. The
    * query must not have a limit clause.
+ *
    * @param limit the maximum number of records to return.
    */
   def fetch[S2](limit: Int)(implicit ev1: AddLimit[State, S2], ev2: ShardingOk[M, S2]): List[R] =
@@ -66,6 +70,7 @@ case class ExecutableQuery[MB, M <: MB, R, State](
 
   /**
    * fetch a batch of results, and execute a function on each element of the list.
+ *
    * @param f the function to invoke on the records that match the query.
    * @return a list containing the results of invoking the function on each record.
    */
@@ -75,6 +80,7 @@ case class ExecutableQuery[MB, M <: MB, R, State](
 
   /**
    * Fetches the first record that matches the query. The query must not contain a "limited" clause.
+ *
    * @return an option record containing either the first result that matches the
    *         query, or None if there are no records that match.
    */
@@ -84,6 +90,7 @@ case class ExecutableQuery[MB, M <: MB, R, State](
   /**
    * Fetches the records that match the query in paginated form. The query must not contain
    * a "limit" clause.
+ *
    * @param countPerPage the number of records to be contained in each page of the result.
    */
   def paginate(countPerPage: Int)

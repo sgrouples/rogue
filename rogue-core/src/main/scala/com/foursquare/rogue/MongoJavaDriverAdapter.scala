@@ -3,6 +3,8 @@
 package com.foursquare.rogue
 
 import com.foursquare.index.UntypedMongoIndex
+import com.foursquare.rogue.MongoHelpers.MongoBuilder._
+import com.foursquare.rogue.QueryHelpers._
 import com.foursquare.rogue.Rogue._
 import com.foursquare.rogue.Iter._
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder, CommandResult, DBCollection,
@@ -306,3 +308,4 @@ class MongoJavaDriverAdapter[MB](dbCollectionFactory: DBCollectionFactory[MB]) {
     }
   }
 }
+
