@@ -6,10 +6,10 @@ import com.foursquare.index.UntypedMongoIndex
 import com.foursquare.rogue.MongoHelpers.MongoBuilder._
 import com.foursquare.rogue.QueryHelpers._
 import com.mongodb.client.result.{UpdateResult, DeleteResult}
-import com.mongodb.{BasicDBObject, WriteConcern, DBObject, ReadPreference}
+import com.mongodb._
 import com.mongodb.async.SingleResultCallback
 import com.mongodb.async.client.{DistinctIterable, MongoCollection}
-import com.mongodb.client.model.{UpdateOptions, CountOptions}
+import com.mongodb.client.model._
 import org.bson.Document
 import org.bson.conversions.Bson
 import scala.collection.JavaConversions._
@@ -99,7 +99,8 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     }
   }
   */
-/*
+
+  /*
   def distinct[M <: MB, R <: Document](query: Query[M, _, _],
                            key: String,
                            readPreference: Option[ReadPreference]): Future[Seq[R]] = {
@@ -107,10 +108,8 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
     val coll = dbCollectionFactory.getDBCollection(query)
-    val distIterable: DistinctIterable[Document] = coll.distinct(key, cnd, classOf[Document])
-    //    <A extends Collection<? super TResult>> void into(A target, SingleResultCallback<A> callback);
     val pa = new PromiseArrayListAdapter[R]()
-    distIterable.into(pa.coll, pa)
+    coll.distinct[R](key, cnd, classOf[R]).into(pa.coll, pa)
     pa.future
   }
 */
@@ -129,6 +128,43 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     pa.future
   }
 
+  def fineOne[M <: MB, R](query: Query[M, _, _], serializer: RogueSerializer[R]): Future[Option[R]] = {
+    val queryClause = transformer.transformQuery(query)
+    validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
+    val cnd = buildCondition(queryClause.condition)
+    val coll = dbCollectionFactory.getDBCollection(query)
+    //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
+    val adaptedSerializer = new com.mongodb.Function[Document,R]{
+      override def apply(d: Document):R = serializer.fromDBObject(d.asInstanceOf[DBObject])
+    }
+    val oneP = Promise[Option[R]]
+    coll.find(cnd).map(adaptedSerializer).first(new SingleResultCallback[R] {
+      override def onResult(result: R, t: Throwable): Unit = {
+        if(result != null) oneP.success(Some(result))
+        else if(t == null) oneP.success(None)
+        else oneP.failure(t)
+        }
+    })
+    oneP.future
+  }
+
+  def foreach[M <: MB, R](query: Query[M, _, _], f: Document => Unit): Future[Unit] = {
+    val queryClause = transformer.transformQuery(query)
+    validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
+    val cnd = buildCondition(queryClause.condition)
+    val coll = dbCollectionFactory.getDBCollection(query)
+    //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
+    val pu = Promise[Unit]
+    coll.find(cnd).forEach(new Block[Document]{
+      override def apply(t: Document): Unit = f(t)
+    }, new SingleResultCallback[Void] {
+      override def onResult(result: Void, t: Throwable): Unit = {
+        if(result != null) pu.success(())
+        else pu.failure(t)
+      }
+    })
+    pu.future
+  }
 
   def delete[M <: MB](query: Query[M, _, _],
                       writeConcern: WriteConcern): Future[Unit] = {
@@ -155,7 +191,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     val p = Promise[Unit]
     if (!modClause.mod.clauses.isEmpty) {
       val q = buildCondition(modClause.query.condition)
-      val m = buildModify(modClause.mod).asInstanceOf[BasicDBObject]
+      val m = buildModify(modClause.mod)
       val coll = dbCollectionFactory.getPrimaryDBCollection(modClause.query)
 
       coll.updateMany(q,m, new UpdateOptions(), new SingleResultCallback[UpdateResult] {
@@ -169,6 +205,44 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     p.future
   }
 
+  def findAndModify[M <: MB, R](mod: FindAndModifyQuery[M, R],
+                                returnNew: Boolean,
+                                upsert: Boolean,
+                                remove: Boolean)
+                               (f: DBObject => R): Future[Option[R]] = {
+    val modClause = transformer.transformFindAndModify(mod)
+    validator.validateFindAndModify(modClause, dbCollectionFactory.getIndexes(modClause.query))
+    val p = Promise[Option[R]]
+    if (!modClause.mod.clauses.isEmpty || remove) {
+      val query = modClause.query
+      val cnd = buildCondition(query.condition)
+      val ord = query.order.map(buildOrder)
+      //val sel = query.select.map(buildSelect).getOrElse(BasicDBObjectBuilder.start.get).asInstanceOf[BasicDBObject]
+      val m = buildModify(modClause.mod)
+      val coll = dbCollectionFactory.getPrimaryDBCollection(query)
+      val retDoc = if(returnNew) ReturnDocument.AFTER else ReturnDocument.BEFORE
+
+      val singleResCallback = new SingleResultCallback[Document] {
+        override def onResult(result: Document, t: Throwable): Unit = {
+          if(result != null) p.success(Option(f(result.asInstanceOf[BasicDBObject])))
+          else if(t == null) p.success(None)
+          else p.failure(t)
+        }
+      }
+      if(remove) {
+        val opts = new FindOneAndDeleteOptions()
+        ord.map(dbo => opts.sort(dbo.asInstanceOf[BasicDBObject]))
+        coll.findOneAndDelete(cnd, opts, singleResCallback)
+      } else {
+        val opts = new FindOneAndUpdateOptions().returnDocument(retDoc).upsert(upsert)
+        ord.map(dbo => opts.sort(dbo.asInstanceOf[BasicDBObject]))
+        coll.findOneAndUpdate(cnd, m, opts, singleResCallback)
+      }
+    }
+    else p.success(None)
+
+    p.future
+  }
 
 
 }

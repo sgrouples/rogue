@@ -5,6 +5,7 @@ package com.foursquare.rogue
 import com.foursquare.field.Field
 import com.foursquare.rogue.MongoHelpers.{MongoModify, MongoSelect}
 import com.mongodb.{DBObject, ReadPreference, WriteConcern}
+import org.bson.Document
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
@@ -269,8 +270,8 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }*/
 
-
-  /*def distinct[M <: MB, V, State](query: Query[M, _, State],
+/*
+  def distinct[M <: MB, V, State](query: Query[M, _, State],
                                   readPreference: Option[ReadPreference] = None)
                                  (field: M => Field[V, M])
                                  (implicit ev: ShardingOk[M, State]): Future[Seq[V]] = {
@@ -292,25 +293,31 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }
 
-  /*
+
   def fetchOne[M <: MB, R, State, S2](query: Query[M, R, State],
                                       readPreference: Option[ReadPreference] = None)
                                      (implicit ev1: AddLimit[State, S2], ev2: ShardingOk[M, S2]): Future[Option[R]] = {
-    fetch(query.limit(1), readPreference).headOption
+    val q = query.limit(1)
+    val s = serializer[M, R](q.meta, q.select)
+    adapter.fineOne(q, s)
   }
+
 
   def foreach[M <: MB, R, State](query: Query[M, R, State],
                                  readPreference: Option[ReadPreference] = None)
                                 (f: R => Unit)
                                 (implicit ev: ShardingOk[M, State]): Future[Unit] = {
     if (optimizer.isEmptyQuery(query)) {
-      ()
+      Future.successful(())
     } else {
       val s = serializer[M, R](query.meta, query.select)
-      adapter.query(query, None, readPreference)(dbo => f(s.fromDBObject(dbo)))
+      val docBlock: Document => Unit = doc => f(s.fromDBObject(doc.asInstanceOf[DBObject]))
+      //applies docBlock to each Document = conversion + f(R)
+      adapter.foreach(query, docBlock)
     }
   }
 
+  /*
   private def drainBuffer[A, B](
                                  from: ListBuffer[A],
                                  to: ListBuffer[B],
@@ -359,7 +366,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }
 
-  /*
+
   def updateOne[M <: MB, State](
                                  query: ModifyQuery[M, State],
                                  writeConcern: WriteConcern = defaultWriteConcern
@@ -370,7 +377,6 @@ trait AsyncQueryExecutor[MB] extends Rogue {
       adapter.modify(query, upsert = false, multi = false, writeConcern = writeConcern)
     }
   }
-  */
 
   def upsertOne[M <: MB, State](
                                  query: ModifyQuery[M, State],
@@ -383,7 +389,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }
 
-  /*
+
   def updateMulti[M <: MB, State](
                                    query: ModifyQuery[M, State],
                                    writeConcern: WriteConcern = defaultWriteConcern
@@ -395,6 +401,8 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }
 
+
+  //WARNING - it might not behave like original - since I don't know how to handle selection
   def findAndUpdateOne[M <: MB, R](
                                     query: FindAndModifyQuery[M, R],
                                     returnNew: Boolean = false,
@@ -407,6 +415,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
       adapter.findAndModify(query, returnNew, upsert=false, remove=false)(s.fromDBObject _)
     }
   }
+
 
   def findAndUpsertOne[M <: MB, R](
                                     query: FindAndModifyQuery[M, R],
@@ -433,7 +442,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
       adapter.findAndModify(mod, returnNew=false, upsert=false, remove=true)(s.fromDBObject _)
     }
   }
-
+/*
   def explain[M <: MB](query: Query[M, _, _]): Future[String] = {
     adapter.explain(query)
   }

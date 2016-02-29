@@ -72,14 +72,14 @@ object MongoHelpers extends Rogue {
       builder.get
     }
 
-    def buildModify(m: MongoModify): DBObject = {
+    def buildModify(m: MongoModify): BasicDBObject = {
       val builder = BasicDBObjectBuilder.start
       m.clauses.groupBy(_.operator).foreach{ case (op, cs) => {
         builder.push(op.toString)
         cs.foreach(_.extend(builder))
         builder.pop
       }}
-      builder.get
+      builder.get().asInstanceOf[BasicDBObject]
     }
 
     def buildSelect[M, R](select: MongoSelect[M, R]): DBObject = {

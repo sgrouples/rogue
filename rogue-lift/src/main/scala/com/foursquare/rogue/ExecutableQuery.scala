@@ -10,7 +10,8 @@ import com.mongodb.WriteConcern
 
 case class ExecutableQuery[MB, M <: MB, R, State](
     query: Query[M, R, State],
-    db: QueryExecutor[MB]
+    db: QueryExecutor[MB],
+    dba: AsyncQueryExecutor[MB]
 )(implicit ev: ShardingOk[M, State]) {
 
   /**
