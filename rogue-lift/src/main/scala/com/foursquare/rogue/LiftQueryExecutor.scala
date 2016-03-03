@@ -44,6 +44,7 @@ object LiftDBCollectionFactory extends DBCollectionFactory[MongoRecord[_] with M
   }
 }
 
+
 class LiftAdapter(dbCollectionFactory: DBCollectionFactory[MongoRecord[_] with MongoMetaRecord[_]])
   extends MongoJavaDriverAdapter(dbCollectionFactory)
 
@@ -142,3 +143,6 @@ object LiftQueryExecutorHelpers {
     })).toOption
   }
 }
+
+
+//class LiftQueryExecutor(override val adapter: MongoJavaDriverAdapter[MongoRecord[_] with MongoMetaRecord[_]]) extends QueryExecutor[MongoRecord[_] with MongoMetaRecord[_]] {
