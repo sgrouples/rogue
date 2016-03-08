@@ -157,6 +157,10 @@ case class ExecutableQuery[MB, M <: MB, R, State](
     new PaginatedQuery(ev1(query), db, dba, countPerPage)
   }
 
+  def existsAsync(implicit ev: State <:< Unlimited with Unskipped): Future[Boolean] = {
+    val q = query.copy(select = Some(MongoSelect[M, Null](Nil, _ => null)))
+    dba.exists(q.limit(1))
+  }
 
   def bulkDeleteAsync_!!!()(implicit ev1: Required[State, Unselected with Unlimited with Unskipped]): Future[Unit] = dba.bulkDelete_!!(query)
 

@@ -49,6 +49,15 @@ class PromiseLongCallbackBridge extends SingleResultCallback[java.lang.Long] {
   def future = promise.future
 }
 
+class PromiseLongBooleanCallbackBridge extends SingleResultCallback[java.lang.Long] {
+  val promise = Promise[Boolean]()
+  override def onResult(result: java.lang.Long, t: Throwable): Unit = {
+    if (result != null) promise.success(result.longValue() > 0)
+    else promise.failure(t)
+  }
+  def future = promise.future
+}
+
 class PromiseArrayListAdapter[R] extends SingleResultCallback[java.util.Collection[R]] {
   val coll = new util.ArrayList[R]()
   private[this] val p = Promise[Seq[R]]
@@ -69,6 +78,24 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     //we don't care for skip, limit in count - maybe we deviate from original, but it makes no sense anyways
     val coll = dbCollectionFactory.getDBCollection(query)
     val callback = new PromiseLongCallbackBridge()
+    if(queryClause.lim.isDefined || queryClause.sk.isDefined) {
+      val options = new CountOptions()
+      queryClause.lim.map(options.limit(_))
+      queryClause.sk.map(options.skip(_))
+      coll.count(condition, options, callback)
+    } else {
+      coll.count(condition, callback)
+    }
+    callback.future
+  }
+
+  def exists[M <: MB](query: Query[M, _, _], readPreference: Option[ReadPreference]): Future[Boolean] = {
+    val queryClause = transformer.transformQuery(query)
+    validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
+    val condition: Bson = buildCondition(queryClause.condition)
+    //we don't care for skip, limit in count - maybe we deviate from original, but it makes no sense anyways
+    val coll = dbCollectionFactory.getDBCollection(query)
+    val callback = new PromiseLongBooleanCallbackBridge()
     if(queryClause.lim.isDefined || queryClause.sk.isDefined) {
       val options = new CountOptions()
       queryClause.lim.map(options.limit(_))

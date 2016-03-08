@@ -115,6 +115,7 @@ class TrivialAsyncORMQueryTest extends JUnitMustMatchers {
   def canExecuteQuery: Unit = {
     Await.result(executor.fetch(SimpleARecord.where(_.a eqs 1)), oneS) must_== Nil
     Await.result(executor.count(SimpleARecord), oneS) must_== 0
+    Await.result(executor.exists(SimpleARecord), oneS) must_== false
   }
 
   @Test
@@ -125,10 +126,12 @@ class TrivialAsyncORMQueryTest extends JUnitMustMatchers {
       _ <- executor.upsertOne(SimpleARecord.modify(_.a setTo 1).and(_.b setTo "foo"))
       cnt <- executor.count(SimpleARecord)
       results <- executor.fetch(SimpleARecord.where(_.a eqs 1))
+      e1 <- executor.exists(SimpleARecord.where(_.a eqs 1).select(_.a))
       r1 <- executor.fetch(SimpleARecord.where(_.a eqs 1).select(_.a))
       r2 <- executor.fetch(SimpleARecord.where(_.a eqs 1).select(_.b))
       r3 <- executor.fetch(SimpleARecord.where(_.a eqs 1).select(_.a, _.b))
     } yield {
+      e1 must_== true
       cnt must_== 1
       results.size must_== 1
       results(0).a must_== 1

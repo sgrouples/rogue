@@ -259,6 +259,16 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }
 
+  def exists[M <: MB, State](query: Query[M, _, State],
+                            readPreference: Option[ReadPreference] = None)
+                           (implicit ev: ShardingOk[M, State]): Future[Boolean] = {
+    if (optimizer.isEmptyQuery(query)) {
+      Future.successful(false)
+    } else {
+      adapter.exists(query, readPreference)
+    }
+  }
+
   /*def countDistinct[M <: MB, V, State](query: Query[M, _, State],
                                        readPreference: Option[ReadPreference] = None)
                                       (field: M => Field[V, M])
