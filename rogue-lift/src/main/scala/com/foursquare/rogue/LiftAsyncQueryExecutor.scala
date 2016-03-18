@@ -1,48 +1,13 @@
 package com.foursquare.rogue
 
-import java.util.concurrent.ConcurrentHashMap
-
 import com.foursquare.index.{IndexedRecord, UntypedMongoIndex}
 import com.foursquare.rogue.MongoHelpers.MongoSelect
-import com.mongodb.async.client.{MongoClient, MongoCollection, MongoDatabase}
-import com.mongodb.{DBObject, MongoException}
+import com.mongodb.DBObject
+import com.mongodb.async.client.MongoCollection
 import net.liftweb.mongodb.record.{MongoMetaRecord, MongoRecord}
-import net.liftweb.util.ConnectionIdentifier
+import net.liftweb.mongodb.MongoAsync
 import org.bson.Document
 
-//maye it should live in Lift
-object MongoAsync {
-
-  /*
-  * HashMap of Mongo instance and db name tuples, keyed by ConnectionIdentifier
-  */
-  private val dbs = new ConcurrentHashMap[ConnectionIdentifier, (MongoClient, String)]
-
-  /**
-    * Define a Mongo db using a MongoClient instance.
-    */
-  def defineDb(name: ConnectionIdentifier, mngo: MongoClient, dbName: String) {
-    dbs.put(name, (mngo, dbName))
-  }
-
-  /*
-  * Get a DB reference
-  */
-  def getDb(name: ConnectionIdentifier): Option[MongoDatabase] = dbs.get(name) match {
-    case null => None
-    case (mngo, db) => Some(mngo.getDatabase(db))
-  }
-
-
-  def useSession[T](ci: ConnectionIdentifier)(f: (MongoDatabase) => T): T = {
-    val db = getDb(ci) match {
-      case Some(mongo) => mongo
-      case _ => throw new MongoException("Mongo not found: "+ci.toString)
-    }
-    f(db)
-  }
-
-}
 
 
 object LiftAsyncDBCollectionFactory extends AsyncDBCollectionFactory[MongoRecord[_] with MongoMetaRecord[_]] {
