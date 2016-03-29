@@ -17,6 +17,7 @@ object TrivialAsyncORM {
   trait Meta[R] {
     def collectionName: String
     def fromDBObject(dbo: DBObject): R
+    def fromDocument(doc: Document): R
   }
 
   val mongo: async.client.MongoClient = {
@@ -67,6 +68,19 @@ object TrivialAsyncORM {
         case None =>
           meta.fromDBObject(dbo).asInstanceOf[R]
       }
+      override def fromDocument(doc: Document): R = select match {
+        case Some(MongoSelect(Nil, transformer)) =>
+          // A MongoSelect clause exists, but has empty fields. Return null.
+          // This is used for .exists(), where we just want to check the number
+          // of returned results is > 0.
+          transformer(null)
+
+        case Some(MongoSelect(fields, transformer)) =>
+          transformer(fields.map(f => f.valueOrDefault(Option(doc.get(f.field.name)))))
+
+        case None =>
+          meta.fromDocument(doc).asInstanceOf[R]
+      }
     }
   }
 
@@ -88,6 +102,10 @@ object SimpleARecord extends TrivialAsyncORM.Meta[SimpleARecord] {
   override def fromDBObject(dbo: DBObject): SimpleARecord = {
     new SimpleARecord(dbo.get(a.name).asInstanceOf[Int], dbo.get(b.name).asInstanceOf[String])
   }
+  override def fromDocument(dbo: Document): SimpleARecord = {
+    new SimpleARecord(dbo.get(a.name).asInstanceOf[Int], dbo.get(b.name).asInstanceOf[String])
+  }
+
 }
 
 

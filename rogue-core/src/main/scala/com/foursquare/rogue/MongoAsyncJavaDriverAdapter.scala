@@ -148,7 +148,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     val coll = dbCollectionFactory.getDBCollection(query)
     //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
     val adaptedSerializer = new com.mongodb.Function[Document,R]{
-      override def apply(d: Document):R = serializer.fromDBObject(d.asInstanceOf[DBObject])
+      override def apply(d: Document):R = serializer.fromDocument(d)
     }
     val pa = new PromiseArrayListAdapter[R]()
     coll.find(cnd).map(adaptedSerializer).into(pa.coll, pa)
@@ -162,7 +162,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     val coll = dbCollectionFactory.getDBCollection(query)
     //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
     val adaptedSerializer = new com.mongodb.Function[Document,R]{
-      override def apply(d: Document):R = serializer.fromDBObject(d.asInstanceOf[DBObject])
+      override def apply(d: Document):R = serializer.fromDocument(d)
     }
     val oneP = Promise[Option[R]]
     coll.find(cnd).map(adaptedSerializer).first(new SingleResultCallback[R] {
@@ -180,7 +180,6 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
     val coll = dbCollectionFactory.getDBCollection(query)
-    //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
     val pu = Promise[Unit]
     coll.find(cnd).forEach(new Block[Document]{
       override def apply(t: Document): Unit = f(t)
@@ -236,7 +235,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
                                 returnNew: Boolean,
                                 upsert: Boolean,
                                 remove: Boolean)
-                               (f: DBObject => R): Future[Option[R]] = {
+                               (f: Document => R): Future[Option[R]] = {
     val modClause = transformer.transformFindAndModify(mod)
     validator.validateFindAndModify(modClause, dbCollectionFactory.getIndexes(modClause.query))
     val p = Promise[Option[R]]
@@ -251,7 +250,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
 
       val singleResCallback = new SingleResultCallback[Document] {
         override def onResult(result: Document, t: Throwable): Unit = {
-          if(result != null) p.success(Option(f(result.asInstanceOf[BasicDBObject])))
+          if(result != null) p.success(Option(f(result)))
           else if(t == null) p.success(None)
           else p.failure(t)
         }

@@ -81,6 +81,27 @@ class LiftAsyncQueryExecutor(override val adapter: MongoAsyncJavaDriverAdapter[M
         case None =>
           meta.fromDBObject(dbo).asInstanceOf[R]
       }
+      override def fromDocument(dbo: Document): R = select match {
+        case Some(MongoSelect(Nil, transformer)) =>
+          // A MongoSelect clause exists, but has empty fields. Return null.
+          // This is used for .exists(), where we just want to check the number
+          // of returned results is > 0.
+          transformer(null)
+        case Some(MongoSelect(fields, transformer)) =>
+          val inst = meta.createRecord.asInstanceOf[MongoRecord[_]]
+
+          LiftQueryExecutorHelpers.setInstanceFieldFromDoc(inst, dbo, "_id")
+
+          val values =
+            fields.map(fld => {
+              val valueOpt = LiftQueryExecutorHelpers.setInstanceFieldFromDoc(inst, dbo, fld.field.name)
+              fld.valueOrDefault(valueOpt)
+            })
+
+          transformer(values)
+        case None =>
+          meta.fromDocument(dbo).asInstanceOf[R]
+      }
     }
   }
 }

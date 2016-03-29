@@ -11,6 +11,7 @@ import scala.concurrent.Future
 
 trait RogueSerializer[R] {
   def fromDBObject(dbo: DBObject): R
+  def fromDocument(doc: Document): R
 }
 
 trait QueryExecutor[MB] extends Rogue {
@@ -321,7 +322,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
       Future.successful(())
     } else {
       val s = serializer[M, R](query.meta, query.select)
-      val docBlock: Document => Unit = doc => f(s.fromDBObject(doc.asInstanceOf[DBObject]))
+      val docBlock: Document => Unit = doc => f(s.fromDocument(doc))
       //applies docBlock to each Document = conversion + f(R)
       adapter.foreach(query, docBlock)
     }
@@ -422,7 +423,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
       Future.successful(None)
     } else {
       val s = serializer[M, R](query.query.meta, query.query.select)
-      adapter.findAndModify(query, returnNew, upsert=false, remove=false)(s.fromDBObject _)
+      adapter.findAndModify(query, returnNew, upsert=false, remove=false)(s.fromDocument _)
     }
   }
 
@@ -436,7 +437,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
       Future.successful(None)
     } else {
       val s = serializer[M, R](query.query.meta, query.query.select)
-      adapter.findAndModify(query, returnNew, upsert=true, remove=false)(s.fromDBObject _)
+      adapter.findAndModify(query, returnNew, upsert=true, remove=false)(s.fromDocument _)
     }
   }
 
@@ -449,7 +450,7 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     } else {
       val s = serializer[M, R](query.meta, query.select)
       val mod = FindAndModifyQuery(query, MongoModify(Nil))
-      adapter.findAndModify(mod, returnNew=false, upsert=false, remove=true)(s.fromDBObject _)
+      adapter.findAndModify(mod, returnNew=false, upsert=false, remove=true)(s.fromDocument _)
     }
   }
 /*
