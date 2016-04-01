@@ -32,7 +32,7 @@ class PromiseCallbackBridge[T] extends SingleResultCallback[T] {
   val promise = Promise[T]()
 
   override def onResult(result: T, t: Throwable): Unit = {
-    if (result != null) promise.success(result)
+    if (t == null) promise.success(result)
     else promise.failure(t)
   }
 
@@ -43,7 +43,7 @@ class PromiseCallbackBridge[T] extends SingleResultCallback[T] {
 class PromiseLongCallbackBridge extends SingleResultCallback[java.lang.Long] {
   val promise = Promise[Long]()
   override def onResult(result: java.lang.Long, t: Throwable): Unit = {
-    if (result != null) promise.success(result)
+    if (t == null) promise.success(result)
     else promise.failure(t)
   }
   def future = promise.future
@@ -52,7 +52,7 @@ class PromiseLongCallbackBridge extends SingleResultCallback[java.lang.Long] {
 class PromiseLongBooleanCallbackBridge extends SingleResultCallback[java.lang.Long] {
   val promise = Promise[Boolean]()
   override def onResult(result: java.lang.Long, t: Throwable): Unit = {
-    if (result != null) promise.success(result.longValue() > 0)
+    if (t == null) promise.success(result.longValue() > 0)
     else promise.failure(t)
   }
   def future = promise.future
@@ -63,7 +63,7 @@ class PromiseArrayListAdapter[R] extends SingleResultCallback[java.util.Collecti
   private[this] val p = Promise[Seq[R]]
   //coll == result - by contract
   override def onResult(result: util.Collection[R], t: Throwable): Unit = {
-    if (result != null) p.success(coll)
+    if (t == null) p.success(coll)
     else p.failure(t)
   }
   def future = p.future
@@ -167,8 +167,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     val oneP = Promise[Option[R]]
     coll.find(cnd).map(adaptedSerializer).first(new SingleResultCallback[R] {
       override def onResult(result: R, t: Throwable): Unit = {
-        if(result != null) oneP.success(Some(result))
-        else if(t == null) oneP.success(None)
+        if(t==null) oneP.success(Option(result))
         else oneP.failure(t)
         }
     })
@@ -185,7 +184,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
       override def apply(t: Document): Unit = f(t)
     }, new SingleResultCallback[Void] {
       override def onResult(result: Void, t: Throwable): Unit = {
-        if(result != null) pu.success(())
+        if(t == null) pu.success(())
         else pu.failure(t)
       }
     })
@@ -201,7 +200,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     val p = Promise[Unit]
     coll.deleteMany(cnd, new SingleResultCallback[DeleteResult] {
       override def onResult(result: DeleteResult, t: Throwable): Unit = {
-        if(result != null) p.success(())
+        if(t == null) p.success(())
         else p.failure(t)
       }
     })
@@ -222,7 +221,7 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
 
       coll.updateMany(q,m, new UpdateOptions(), new SingleResultCallback[UpdateResult] {
         override def onResult(result: UpdateResult, t: Throwable): Unit = {
-          if(result != null) p.success(())
+          if(t == null) p.success(())
           else p.failure(t)
         }
       })
@@ -250,9 +249,10 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
 
       val singleResCallback = new SingleResultCallback[Document] {
         override def onResult(result: Document, t: Throwable): Unit = {
-          if(result != null) p.success(Option(f(result)))
-          else if(t == null) p.success(None)
-          else p.failure(t)
+          if(t == null) {
+            if(result !=null) p.success(Option(f(result)))
+            else p.success(None)
+          }else p.failure(t)
         }
       }
       if(remove) {
