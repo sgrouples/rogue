@@ -49,7 +49,7 @@ object TrivialAsyncORM {
   class MyQueryExecutor extends AsyncQueryExecutor[Meta[_]] {
     override val adapter = new MongoAsyncJavaDriverAdapter[Meta[_]](new MyDBCollectionFactory(mongo.getDatabase("test")))
     override val optimizer = new QueryOptimizer
-    override val defaultWriteConcern: WriteConcern = WriteConcern.SAFE
+    override val defaultWriteConcern: WriteConcern = WriteConcern.ACKNOWLEDGED
 
     protected def serializer[M <: Meta[_], R](
                                                meta: M,

@@ -1,10 +1,11 @@
 // Copyright 2011 Foursquare Labs Inc. All Rights Reserved.
 package com.foursquare.rogue
 
-import com.foursquare.index.{Asc, Desc, IndexedRecord, IndexModifier, TwoD}
+import com.foursquare.index.{Asc, Desc, IndexModifier, IndexedRecord, TwoD}
 import com.foursquare.rogue.LiftRogue._
-import com.mongodb.{MongoClient, Mongo, ServerAddress}
-import net.liftweb.mongodb.{MongoDB, MongoIdentifier}
+import com.mongodb.async.client.{MongoClientSettings, MongoClients}
+import com.mongodb.{Mongo, MongoClient, ServerAddress}
+import net.liftweb.mongodb.{MongoAsync, MongoDB, MongoIdentifier}
 import net.liftweb.mongodb.record._
 import net.liftweb.mongodb.record.field._
 import net.liftweb.record.field._
@@ -21,10 +22,19 @@ object RogueTestMongo extends MongoIdentifier {
 
   private var mongo: Option[MongoClient] = None
 
+  private var mongoAs: Option[com.mongodb.async.client.MongoClient] = None
+
   def connectToMongo = {
     val MongoPort = Option(System.getenv("MONGO_PORT")).map(_.toInt).getOrElse(37648)
     mongo = Some(new MongoClient(new ServerAddress("localhost", MongoPort)))
     MongoDB.defineDb(RogueTestMongo, mongo.get, "rogue-test")
+  }
+
+  def connectToMongoAsync = {
+    val MongoPort = Option(System.getenv("MONGO_PORT")).map(_.toInt).getOrElse(37648)
+    val mongoAsync = MongoClients.create(s"mongodb://localhost:${MongoPort}")
+    mongoAs = Option(mongoAsync)
+    MongoAsync.defineDb(RogueTestMongo, mongoAsync, "rogue-test")
   }
 
   def disconnectFromMongo = {
@@ -32,6 +42,13 @@ object RogueTestMongo extends MongoIdentifier {
     MongoDB.closeAll()
     mongo = None
   }
+
+  def disconnectFromMongoAsync = {
+    MongoAsync.closeAll()
+    mongoAs.foreach(_.close())
+    mongoAs = None
+  }
+
 }
 
 object VenueStatus extends Enumeration {

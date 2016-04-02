@@ -66,8 +66,8 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def eqsTests: Unit = {
-    val v = baseTestVenue().save
-    val vc = baseTestVenueClaim(v.id).save
+    val v = baseTestVenue().save()
+    val vc = baseTestVenueClaim(v.id).save()
 
     // eqs
     metaRecordToQueryBuilder(Venue).where(_._id eqs v.id).fetch().map(_.id)                         must_== List(v.id)
@@ -86,8 +86,8 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def testInequalityQueries: Unit = {
-    val v = baseTestVenue().save
-    val vc = baseTestVenueClaim(v.id).save
+    val v = baseTestVenue().save()
+    val vc = baseTestVenueClaim(v.id).save()
 
     // neq,lt,gt, where the lone Venue has mayor_count=3, and the only
     // VenueClaim has status approved.
@@ -107,7 +107,7 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def selectQueries: Unit = {
-    val v = baseTestVenue().save
+    val v = baseTestVenue().save()
 
     val base = Venue.where(_._id eqs v.id)
     base.select(_.legacyid).fetch() must_== List(v.legacyid.value)
@@ -120,13 +120,13 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def selectEnum: Unit = {
-    val v = baseTestVenue().save
+    val v = baseTestVenue().save()
     Venue.where(_._id eqs v.id).select(_.status).fetch() must_== List(VenueStatus.open)
   }
 
   @Test
   def selectCaseQueries: Unit = {
-    val v = baseTestVenue().save
+    val v = baseTestVenue().save()
 
     val base = Venue.where(_._id eqs v.id)
     base.selectCase(_.legacyid, V1).fetch() must_== List(V1(v.legacyid.value))
@@ -139,8 +139,8 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def selectSubfieldQueries: Unit = {
-    val v = baseTestVenue().save
-    val t = baseTestTip().save
+    val v = baseTestVenue().save()
+    val t = baseTestTip().save()
 
     // select subfields
     Tip.where(_._id eqs t.id).select(_.counts at "foo").fetch() must_== List(Some(1L))
@@ -166,7 +166,7 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Ignore("These tests are broken because DummyField doesn't know how to convert a String to an Enum")
   def testSelectEnumSubfield: Unit = {
-    val v = baseTestVenue().save
+    val v = baseTestVenue().save()
 
     // This behavior is broken because we get a String back from mongo, and at
     // that point we only have a DummyField for the subfield, and that doesn't
@@ -195,7 +195,7 @@ class EndToEndTest extends JUnitMustMatchers {
     // Note: this isn't a real test of readpreference because the test mongo setup
     // doesn't have replicas. This basically just makes sure that readpreference
     // doesn't break everything.
-    val v = baseTestVenue().save
+    val v = baseTestVenue().save()
 
     // eqs
     Venue.where(_._id eqs v.id).fetch().map(_.id)                         must_== List(v.id)
@@ -228,7 +228,7 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def testRegexQuery {
-    val v = baseTestVenue().save
+    val v = baseTestVenue().save()
     Venue.where(_._id eqs v.id).and(_.venuename startsWith "test v").count must_== 1
     Venue.where(_._id eqs v.id).and(_.venuename matches ".es. v".r).count must_== 1
     Venue.where(_._id eqs v.id).and(_.venuename matches "Tes. v".r).count must_== 0
@@ -242,7 +242,7 @@ class EndToEndTest extends JUnitMustMatchers {
   def testIteratees {
     // Insert some data
     val vs = for (i <- 1 to 10) yield {
-      baseTestVenue().legacyid(i).save
+      baseTestVenue().legacyid(i).save()
     }
     val ids = vs.map(_.id)
 
@@ -302,7 +302,7 @@ class EndToEndTest extends JUnitMustMatchers {
   @Test
   def testDeserializationWithIteratee() {
     val inner = CalendarInner.createRecord.date(Calendar.getInstance())
-    CalendarFld.createRecord.inner(inner).save
+    CalendarFld.createRecord.inner(inner).save()
 
     val q = CalendarFld select(_.inner.subfield(_.date))
     val cnt = q.count()
@@ -321,10 +321,10 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def testSharding {
-    val l1 = Like.createRecord.userid(1).checkin(111).save
-    val l2 = Like.createRecord.userid(2).checkin(111).save
-    val l3 = Like.createRecord.userid(2).checkin(333).save
-    val l4 = Like.createRecord.userid(2).checkin(444).save
+    val l1 = Like.createRecord.userid(1).checkin(111).save()
+    val l2 = Like.createRecord.userid(2).checkin(111).save()
+    val l3 = Like.createRecord.userid(2).checkin(333).save()
+    val l4 = Like.createRecord.userid(2).checkin(444).save()
 
     // Find
     Like.where(_.checkin eqs 111).allShards.count() must_== 2
@@ -349,7 +349,7 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def testLimitAndBatch {
-    (1 to 50).foreach(_ => baseTestVenue().save)
+    (1 to 50).foreach(_ => baseTestVenue().save())
 
     val q = Venue.select(_._id)
     q.limit(10).fetch().length must_== 10
@@ -361,7 +361,7 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def testCount {
-    (1 to 10).foreach(_ => baseTestVenue().save)
+    (1 to 10).foreach(_ => baseTestVenue().save())
     val q = Venue.select(_._id)
     q.count() must_== 10
     q.limit(3).count() must_== 3
@@ -374,16 +374,16 @@ class EndToEndTest extends JUnitMustMatchers {
 
   @Test
   def testDistinct {
-    (1 to 5).foreach(_ => baseTestVenue().userid(1).save)
-    (1 to 5).foreach(_ => baseTestVenue().userid(2).save)
-    (1 to 5).foreach(_ => baseTestVenue().userid(3).save)
+    (1 to 5).foreach(_ => baseTestVenue().userid(1).save())
+    (1 to 5).foreach(_ => baseTestVenue().userid(2).save())
+    (1 to 5).foreach(_ => baseTestVenue().userid(3).save())
     Venue.where(_.mayor eqs 789).distinct(_.userid).length must_== 3
     Venue.where(_.mayor eqs 789).countDistinct(_.userid) must_== 3
   }
 
   @Test
   def testSlice {
-    baseTestVenue().tags(List("1", "2", "3", "4")).save
+    baseTestVenue().tags(List("1", "2", "3", "4")).save()
     Venue.select(_.tags.slice(2)).get() must_== Some(List("1", "2"))
     Venue.select(_.tags.slice(-2)).get() must_== Some(List("3", "4"))
     Venue.select(_.tags.slice(1, 2)).get() must_== Some(List("2", "3"))

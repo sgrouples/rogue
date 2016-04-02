@@ -3,6 +3,9 @@
 package com.foursquare.rogue
 
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder, DBObject}
+import org.bson.BsonDocument
+import org.bson.conversions.Bson
+
 import scala.collection.immutable.ListMap
 
 object MongoHelpers extends Rogue {
@@ -66,10 +69,10 @@ object MongoHelpers extends Rogue {
       builder.get.asInstanceOf[BasicDBObject]
     }
 
-    def buildOrder(o: MongoOrder): DBObject = {
+    def buildOrder(o: MongoOrder): BasicDBObject = {
       val builder = BasicDBObjectBuilder.start
       o.terms.reverse.foreach { case (field, ascending) => builder.add(field, if (ascending) 1 else -1) }
-      builder.get
+      builder.get.asInstanceOf[BasicDBObject]
     }
 
     def buildModify(m: MongoModify): BasicDBObject = {
@@ -82,7 +85,7 @@ object MongoHelpers extends Rogue {
       builder.get().asInstanceOf[BasicDBObject]
     }
 
-    def buildSelect[M, R](select: MongoSelect[M, R]): DBObject = {
+    def buildSelect[M, R](select: MongoSelect[M, R]): BasicDBObject = {
       val builder = BasicDBObjectBuilder.start
       // If select.fields is empty, then a MongoSelect clause exists, but has an empty
       // list of fields. In this case (used for .exists()), we select just the
@@ -98,8 +101,27 @@ object MongoHelpers extends Rogue {
           }
         })
       }
-      builder.get
+      builder.get.asInstanceOf[BasicDBObject]
     }
+
+    /*def buildSelectBson[M, R](select: MongoSelect[M, R]): Bson = {
+      val builder = new BsonDocument()
+      // If select.fields is empty, then a MongoSelect clause exists, but has an empty
+      // list of fields. In this case (used for .exists()), we select just the
+      // _id field.
+      if (select.fields.isEmpty) {
+        builder.append("_id", 1)
+      } else {
+        select.fields.foreach(f => {
+          f.slc match {
+            case None => builder.add(f.field.name, 1)
+            case Some((s, None)) => builder.push(f.field.name).add("$slice", s).pop()
+            case Some((s, Some(e))) => builder.push(f.field.name).add("$slice", QueryHelpers.makeJavaList(List(s, e))).pop()
+          }
+        })
+      }
+      builder.get
+    }*/
 
     def buildHint(h: ListMap[String, Any]): DBObject = {
       val builder = BasicDBObjectBuilder.start

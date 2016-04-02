@@ -146,12 +146,36 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
     val coll = dbCollectionFactory.getDBCollection(query)
+    val sel = queryClause.select.map(buildSelect).getOrElse(BasicDBObjectBuilder.start.get.asInstanceOf[BasicDBObject])
+    val ord = queryClause.order.map(buildOrder)
+    /*
+     val queryClause = transformer.transformQuery(query)
+    validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
+    val cnd = buildCondition(queryClause.condition)
+
+        val cursor = coll.find(cnd, sel)
+        batchSize.foreach(cursor batchSize _)
+        queryClause.lim.foreach(cursor.limit _)
+        queryClause.sk.foreach(cursor.skip _)
+        ord.foreach(cursor.sort _)
+        readPreference.orElse(queryClause.readPreference).foreach(cursor.setReadPreference _)
+        queryClause.maxScan.foreach(cursor addSpecial("$maxScan", _))
+        queryClause.comment.foreach(cursor addSpecial("$comment", _))
+        hnt.foreach(cursor hint _)
+
+
+     */
     //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
     val adaptedSerializer = new com.mongodb.Function[Document,R]{
       override def apply(d: Document):R = serializer.fromDocument(d)
     }
     val pa = new PromiseArrayListAdapter[R]()
-    coll.find(cnd).map(adaptedSerializer).into(pa.coll, pa)
+    //sort, hints
+    val cursor = coll.find(cnd).projection(sel)
+    queryClause.lim.foreach(cursor.limit _)
+    queryClause.sk.foreach(cursor.skip _)
+    ord.foreach(cursor.sort _)
+    cursor.map(adaptedSerializer).into(pa.coll, pa)
     pa.future
   }
 
@@ -160,12 +184,18 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
     val coll = dbCollectionFactory.getDBCollection(query)
+    val sel = queryClause.select.map(buildSelect).getOrElse(BasicDBObjectBuilder.start.get.asInstanceOf[BasicDBObject])
+    val ord = queryClause.order.map(buildOrder)
     //check if serializer will work - quite possible that no, and separate mapper from Document -> R will be needed
     val adaptedSerializer = new com.mongodb.Function[Document,R]{
       override def apply(d: Document):R = serializer.fromDocument(d)
     }
     val oneP = Promise[Option[R]]
-    coll.find(cnd).map(adaptedSerializer).first(new SingleResultCallback[R] {
+    val cursor = coll.find(cnd).projection(sel)
+    queryClause.lim.foreach(cursor.limit _)
+    queryClause.sk.foreach(cursor.skip _)
+    ord.foreach(cursor.sort _)
+    cursor.map(adaptedSerializer).first(new SingleResultCallback[R] {
       override def onResult(result: R, t: Throwable): Unit = {
         if(t==null) oneP.success(Option(result))
         else oneP.failure(t)
