@@ -1,20 +1,23 @@
 package com.foursquare.rogue
 
 import java.util
+import java.util.Collections
 
 import com.foursquare.index.UntypedMongoIndex
 import com.foursquare.rogue.MongoHelpers.MongoBuilder._
 import com.foursquare.rogue.QueryHelpers._
-import com.mongodb.client.result.{UpdateResult, DeleteResult}
+import com.mongodb.client.result.{DeleteResult, UpdateResult}
 import com.mongodb._
 import com.mongodb.async.SingleResultCallback
 import com.mongodb.async.client.{DistinctIterable, MongoCollection}
 import com.mongodb.client.model._
 import org.bson.Document
 import org.bson.conversions.Bson
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
+
 
 trait AsyncDBCollectionFactory[MB] {
   def getDBCollection[M <: MB](query: Query[M, _, _]): MongoCollection[Document]
@@ -68,6 +71,18 @@ class PromiseArrayListAdapter[R] extends SingleResultCallback[java.util.Collecti
   }
   def future = p.future
 }
+
+class PromiseSingleResultAdapter[R] extends SingleResultCallback[java.util.Collection[R]] {
+  val coll = new util.ArrayList[R](1)
+  private[this] val p = Promise[Option[R]]
+  //coll == result - by contract
+  override def onResult(result: util.Collection[R], t: Throwable): Unit = {
+    if (t == null) p.success(coll.headOption)
+    else p.failure(t)
+  }
+  def future = p.future
+}
+
 
 class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFactory[MB]) {
 
@@ -190,17 +205,13 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     val adaptedSerializer = new com.mongodb.Function[Document,R]{
       override def apply(d: Document):R = serializer.fromDocument(d)
     }
-    val oneP = Promise[Option[R]]
+    val oneP = new PromiseSingleResultAdapter[R]()
     val cursor = coll.find(cnd).projection(sel)
     queryClause.lim.foreach(cursor.limit _)
     queryClause.sk.foreach(cursor.skip _)
     ord.foreach(cursor.sort _)
-    cursor.map(adaptedSerializer).first(new SingleResultCallback[R] {
-      override def onResult(result: R, t: Throwable): Unit = {
-        if(t==null) oneP.success(Option(result))
-        else oneP.failure(t)
-        }
-    })
+
+    cursor.map(adaptedSerializer).into(oneP.coll, oneP)
     oneP.future
   }
 
@@ -272,7 +283,6 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
       val query = modClause.query
       val cnd = buildCondition(query.condition)
       val ord = query.order.map(buildOrder)
-      //val sel = query.select.map(buildSelect).getOrElse(BasicDBObjectBuilder.start.get).asInstanceOf[BasicDBObject]
       val m = buildModify(modClause.mod)
       val coll = dbCollectionFactory.getPrimaryDBCollection(query)
       val retDoc = if(returnNew) ReturnDocument.AFTER else ReturnDocument.BEFORE
@@ -287,11 +297,11 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
       }
       if(remove) {
         val opts = new FindOneAndDeleteOptions()
-        ord.map(dbo => opts.sort(dbo.asInstanceOf[BasicDBObject]))
+        ord.map(dbo => opts.sort(dbo))
         coll.findOneAndDelete(cnd, opts, singleResCallback)
       } else {
         val opts = new FindOneAndUpdateOptions().returnDocument(retDoc).upsert(upsert)
-        ord.map(dbo => opts.sort(dbo.asInstanceOf[BasicDBObject]))
+        ord.map(dbo => opts.sort(dbo))
         coll.findOneAndUpdate(cnd, m, opts, singleResCallback)
       }
     }
