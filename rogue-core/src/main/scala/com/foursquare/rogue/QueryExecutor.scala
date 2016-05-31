@@ -6,8 +6,10 @@ import com.foursquare.field.Field
 import com.foursquare.rogue.MongoHelpers.{MongoModify, MongoSelect}
 import com.mongodb.{DBObject, ReadPreference, WriteConcern}
 import org.bson.Document
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
+import scala.reflect.ClassTag
 
 trait RogueSerializer[R] {
   def fromDBObject(dbo: DBObject): R
@@ -270,28 +272,30 @@ trait AsyncQueryExecutor[MB] extends Rogue {
     }
   }
 
-  /*def countDistinct[M <: MB, V, State](query: Query[M, _, State],
+  def countDistinct[M <: MB, V, State](query: Query[M, _, State],
+                                       ct : ClassTag[V],
                                        readPreference: Option[ReadPreference] = None)
                                       (field: M => Field[V, M])
                                       (implicit ev: ShardingOk[M, State]): Future[Long] = {
     if (optimizer.isEmptyQuery(query)) {
       Future.successful(0L)
     } else {
-      adapter.countDistinct(query, field(query.meta).name, readPreference)
+      adapter.countDistinct(query, field(query.meta).name, ct, readPreference)
     }
-  }*/
+  }
 
-/*
+
   def distinct[M <: MB, V, State](query: Query[M, _, State],
+                                  ct : ClassTag[V],
                                   readPreference: Option[ReadPreference] = None)
                                  (field: M => Field[V, M])
                                  (implicit ev: ShardingOk[M, State]): Future[Seq[V]] = {
     if (optimizer.isEmptyQuery(query)) {
       Future.successful(Nil)
     } else {
-      adapter.distinct(query, field(query.meta).name, readPreference)
+      adapter.distinct(query, field(query.meta).name, ct, readPreference)
     }
-  }*/
+  }
 
   def fetch[M <: MB, R, State](query: Query[M, R, State],
                                readPreference: Option[ReadPreference] = None)

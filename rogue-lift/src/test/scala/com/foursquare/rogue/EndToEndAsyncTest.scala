@@ -14,6 +14,7 @@ import org.specs2.matcher.JUnitMustMatchers
 import scala.concurrent.{Await, Awaitable}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Try
 /**
   * Contains tests that test the interaction of Rogue with a real mongo.
   */
@@ -285,8 +286,8 @@ class EndToEndAsyncTest extends JUnitMustMatchers {
     (1 to 5).foreach(_ => blk(baseTestVenue().userid(1).insertAsync()))
     (1 to 5).foreach(_ => blk(baseTestVenue().userid(2).insertAsync()))
     (1 to 5).foreach(_ => blk(baseTestVenue().userid(3).insertAsync()))
-    Venue.where(_.mayor eqs 789).distinct(_.userid).length must_== 3
-    Venue.where(_.mayor eqs 789).countDistinct(_.userid) must_== 3
+    blk(Venue.where(_.mayor eqs 789).distinctAsync(_.userid)).length must_== 3
+    blk(Venue.where(_.mayor eqs 789).countDistinctAsync(_.userid)) must_== 3
   }
 
   @Test

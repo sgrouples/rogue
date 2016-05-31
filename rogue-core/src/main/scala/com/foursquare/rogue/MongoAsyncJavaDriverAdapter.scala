@@ -12,11 +12,14 @@ import com.mongodb.async.SingleResultCallback
 import com.mongodb.async.client.{DistinctIterable, MongoCollection}
 import com.mongodb.client.model._
 import org.bson.Document
+import org.bson.codecs.LongCodec
+import org.bson.codecs.configuration.{CodecRegistries, CodecRegistry}
 import org.bson.conversions.Bson
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
+import scala.reflect.ClassTag
 
 
 trait AsyncDBCollectionFactory[MB] {
@@ -122,39 +125,55 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
     callback.future
   }
 
+
   /*
-  def countDistinct[M <: MB](query: Query[M, _, _],
+  val coll = new util.ArrayList[R]()
+  private[this] val p = Promise[Seq[R]]
+  //coll == result - by contract
+  override def onResult(result: util.Collection[R], t: Throwable): Unit = {
+    if (t == null) p.success(coll)
+    else p.failure(t)
+  }
+  def future = p.future
+   */
+
+  def countDistinct[M <: MB, R](query: Query[M, _, _],
                              key: String,
-                             readPreference: Option[ReadPreference]): Long = {
+                             ct: ClassTag[R],
+                             readPreference: Option[ReadPreference]): Future[Long] = {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
     val coll = dbCollectionFactory.getDBCollection(query)
-    val distIterable: DistinctIterable[Document] = coll.distinct(key, cnd, classOf[Document])
-    //what to do next? - we should just iterate and count...
-    // TODO: fix this so it looks like the correct mongo shell command
-    val description = buildConditionString("distinct", query.collectionName, queryClause)
-
-    runCommand(description, queryClause) {
-      val coll = dbCollectionFactory.getDBCollection(query)
-      coll.distinct(key, cnd, readPreference.getOrElse(coll.find().getReadPreference)).size()
+    val rClass = ct.runtimeClass.asInstanceOf[Class[R]]
+    //a dummy, but result needs it
+    val arr = new util.ArrayList[R]
+    val p = Promise[Long]
+    val pa = new SingleResultCallback[java.util.Collection[R]]() {
+      override def onResult(result: java.util.Collection[R], t: Throwable): Unit = {
+        if (t == null) p.success(result.size())
+        else p.failure(t)
+      }
     }
+    coll.distinct(key, cnd, rClass).into(arr.asInstanceOf[util.Collection[R]], pa)
+    p.future
   }
-  */
 
-  /*
-  def distinct[M <: MB, R <: Document](query: Query[M, _, _],
+
+  def distinct[M <: MB, R](query: Query[M, _, _],
                            key: String,
+                           ct: ClassTag[R],
                            readPreference: Option[ReadPreference]): Future[Seq[R]] = {
     val queryClause = transformer.transformQuery(query)
     validator.validateQuery(queryClause, dbCollectionFactory.getIndexes(queryClause))
     val cnd = buildCondition(queryClause.condition)
     val coll = dbCollectionFactory.getDBCollection(query)
+    val rClass = ct.runtimeClass.asInstanceOf[Class[R]]
     val pa = new PromiseArrayListAdapter[R]()
-    coll.distinct[R](key, cnd, classOf[R]).into(pa.coll, pa)
+    coll.distinct[R](key, cnd, rClass).into(pa.coll, pa)
     pa.future
   }
-*/
+
 
   def find[M <: MB, R](query: Query[M, _, _], serializer: RogueSerializer[R]): Future[Seq[R]] = {
     val queryClause = transformer.transformQuery(query)
