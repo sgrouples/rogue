@@ -278,13 +278,18 @@ class MongoAsyncJavaDriverAdapter[MB](dbCollectionFactory: AsyncDBCollectionFact
       val q = buildCondition(modClause.query.condition)
       val m = buildModify(modClause.mod)
       val coll = dbCollectionFactory.getPrimaryDBCollection(modClause.query)
-
-      coll.updateMany(q,m, new UpdateOptions(), new SingleResultCallback[UpdateResult] {
+      val updateOptions = new UpdateOptions().upsert(upsert)
+      val callback = new SingleResultCallback[UpdateResult] {
         override def onResult(result: UpdateResult, t: Throwable): Unit = {
           if(t == null) p.success(())
           else p.failure(t)
         }
-      })
+      }
+      if(multi) {
+        coll.updateMany(q,m, updateOptions , callback)
+      } else {
+        coll.updateOne(q,m, updateOptions, callback)
+      }
     } else p.success(())
     //else clause = no modify, automatic success ... strange but true
     p.future

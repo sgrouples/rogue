@@ -1,5 +1,5 @@
 libraryDependencies <++= (scalaVersion) { scalaVersion =>
-  val liftVersion = "2.6.2-MongoAsync-7"
+  val liftVersion = "2.6.2-MongoAsync-8"
   Seq(
     "net.liftweb"              %% "lift-util"           % liftVersion  % "compile" intransitive(),
     "net.liftweb"              %% "lift-common"         % liftVersion  % "compile" intransitive(),
