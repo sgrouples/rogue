@@ -467,6 +467,10 @@ abstract class AbstractListModifyField[V, DB, M, CC[X] <: Seq[X]](val field: Fie
   def push(vs: Traversable[V], slice: Int) =
     new ModifyPushEachSliceClause(field.name, slice, valuesToDB(vs))
 
+  def push(vs: Traversable[V], slice: Int, position: Int) =
+    new ModifyPushEachSlicePositionClause(field.name, slice, position, valuesToDB(vs))
+
+
   def pushAll(vs: Traversable[V]) =
     new ModifyClause(ModOps.PushAll,
                      field.name -> QueryHelpers.list(valuesToDB(vs)))
