@@ -21,14 +21,14 @@ object RogueBuild extends Build {
     publishMavenStyle := true,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
-    /*publishTo <<= (version) { v =>
-      val nexus = "https://oss.sonatype.org/"
+    publishTo <<= (version) { v =>
+      val nexus = "https://nexus.groupl.es/"
       if (v.endsWith("-SNAPSHOT"))
-        Some("snapshots" at nexus+"content/repositories/snapshots")
+        Some("snapshots" at nexus+"repository/maven-snapshots/")
       else
-        Some("releases" at nexus+"service/local/staging/deploy/maven2")
-    },*/
-    publishTo := Some(Resolver.file("mvn-repo", new File(Path.userHome + "/git/mvn-repo/"))),
+        Some("releases" at nexus+"repository/maven-releases/")
+    },
+    //publishTo := Some(Resolver.file("mvn-repo", new File(Path.userHome + "/git/mvn-repo/"))),
     pomExtra := (
       <url>http://github.com/foursquare/rogue</url>
       <licenses>
@@ -68,21 +68,6 @@ object RogueBuild extends Build {
     unmanagedClasspath in Compile += Attributed.blank(new java.io.File("doesnotexist")),
 
     testFrameworks += new TestFramework("com.novocode.junit.JUnitFrameworkNoMarker"),
-    credentials ++= {
-      val sonatype = ("Sonatype Nexus Repository Manager", "oss.sonatype.org")
-      def loadMavenCredentials(file: java.io.File) : Seq[Credentials] = {
-        xml.XML.loadFile(file) \ "servers" \ "server" map (s => {
-          val host = (s \ "id").text
-          val realm = if (host == sonatype._2) sonatype._1 else "Unknown"
-          Credentials(realm, host, (s \ "username").text, (s \ "password").text)
-        })
-      }
-      val ivyCredentials   = Path.userHome / ".ivy2" / ".credentials"
-      val mavenCredentials = Path.userHome / ".m2"   / "settings.xml"
-      (ivyCredentials.asFile, mavenCredentials.asFile) match {
-        case (ivy, _) if ivy.canRead => Credentials(ivy) :: Nil
-        case (_, mvn) if mvn.canRead => loadMavenCredentials(mvn)
-        case _ => Nil
-      }
-    })
+    credentials += Credentials(Path.userHome / ".ivy2" / ".meweCredentials")
+    )
 }

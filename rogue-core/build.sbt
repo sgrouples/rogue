@@ -21,4 +21,7 @@ libraryDependencies <++= (scalaVersion) { scalaVersion =>
 
 Seq(RogueBuild.defaultSettings: _*)
 
-resolvers += "Local mvnrepo" at "file:///Users/mar/git/mvn-repo/"
+resolvers ++= Seq(
+  "Mewe relaases" at "https://nexus.groupl.es/repository/maven-releases/",
+  "Mewe snapshosts" at "https://nexus.groupl.es/repository/maven-snapshots/"
+)
